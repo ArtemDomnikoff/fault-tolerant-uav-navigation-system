@@ -69,4 +69,3 @@ class Plotter:
 
         self.axes[2, 1].axis('off')
         plt.pause(0.1)
-        plt.show()
