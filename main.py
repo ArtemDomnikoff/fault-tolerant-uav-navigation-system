@@ -49,7 +49,7 @@ simulator = SensorSimulator()
 # simulator.sensors['accel_1'].sigma = 0.01
 # simulator.sensors['accel_2'].sigma = 0.02
 # simulator.sensors['accel_3'].sigma = 0.03
-# simulator.sensors['gyro_1'].sigma = 0
+# simulator.sensors['gyro_1'].sigma = 0.001
 # simulator.sensors['gyro_2'].sigma = 0.02
 # simulator.sensors['gyro_3'].sigma = 0.03
 # simulator.sensors['baro_1'].sigma = 0.01
@@ -75,28 +75,33 @@ t = 0.0
 
 while t < total_time:
     sensor_data = {'timestamp': t}
+    px = 0.0
+    climb_rate = 0.0
+    pz = 0.0
+    altitude = 0.0
+    pitch = 0.0
 
-    kwargs = {}
-    if t < 1.0:
-        px = 0.0
-        climb_rate = 0.0
-        pz = 0.0
-        pitch = 0
+    if t <= 1.0:
+        pass
     elif 1.0 < t <= 5.0:
         px = (t - 1.0) * 0.7
         climb_rate = (t - 1.0) * 1.5
         pz = (t - 1.0) * climb_rate
-        altitude = (t - 1.0) * climb_rate
+        altitude = pz
+        pitch = -0.2
     elif 5.0 < t <= 8.0:
-        px = 2.1 + (t - 5.0) * 1.0
-        climb_rate = prev_pz_acc
-        altitude = (t - 5.0) * climb_rate
+        px = prev_px
+        climb_rate = max(prev_pz_acc, 0.0)
+        pz = prev_pz
+        altitude = prev_altitude if climb_rate == 0 else pz
+        pitch = -0.1
     else:
         px = prev_px
-        climb_rate = prev_pz_acc
-        pz = 10.0
-        pitch = 0.0
-        altitude = 9
+        climb_rate = max(prev_pz_acc, 0.0)
+        pz = prev_pz
+        altitude = prev_altitude if climb_rate == 0 else pz
+        pitch = -0.1
+
     if 'prev_px' in locals():
         px_acc = (px - prev_px) / dt
     else:
@@ -109,14 +114,20 @@ while t < total_time:
         pz_acc = 0.0
     prev_pz_acc = climb_rate
 
+    prev_pz = pz
+
+    if 'prev_altitude' not in locals():
+        prev_altitude = altitude
+    prev_altitude = altitude
+
     kwargs = {
         'px': px,
         'py': 0.0,
         'pz': pz,
         'roll': 0.0,
-        'pitch': -0.2 if 8.0 >= t > 5.0 else -0.1 if 5.0 >= t > 1.0 else pitch,
+        'pitch': pitch,
         'yaw': 0.0,
-        'altitude': pz,
+        'altitude': altitude,
         'climb_rate': climb_rate,
         'heading': 0.0,
         'px_acc': px_acc,
