@@ -8,7 +8,7 @@ class Plotter:
 
         self.data = {
             'accel': {'x': deque(maxlen=max_len), 'y': deque(maxlen=max_len), 'z': deque(maxlen=max_len)},
-            'gyro': {'x': deque(maxlen=max_len), 'y': deque(maxlen=max_len), 'z': deque(maxlen=max_len)},
+            'gyro': {'roll': deque(maxlen=max_len), 'pitch': deque(maxlen=max_len), 'yaw': deque(maxlen=max_len)},
             'baro': {'altitude': deque(maxlen=max_len)},
             'mag': {'heading': deque(maxlen=max_len)},
             'estimate': {'x': deque(maxlen=max_len), 'y': deque(maxlen=max_len), 'z': deque(maxlen=max_len)},
@@ -26,7 +26,7 @@ class Plotter:
         for axis in ['x', 'y', 'z']:
             self.data['accel'][axis].append(acc.get(axis, 0))
         gyro = sensor_data.get('gyro_1', {})
-        for axis in ['x', 'y', 'z']:
+        for axis in ['roll', 'pitch', 'yaw']:
             self.data['gyro'][axis].append(gyro.get(axis, 0))
         baro = sensor_data.get('baro_1', {})
         self.data['baro']['altitude'].append(baro.get('altitude', 0))
@@ -36,6 +36,7 @@ class Plotter:
         self.data['estimate']['x'].append(float(estimate[0]))
         self.data['estimate']['y'].append(float(estimate[1]))
         self.data['estimate']['z'].append(float(estimate[2]))
+        self.plot()
 
     def plot(self):
         self.axes[0, 0].cla()
@@ -46,7 +47,7 @@ class Plotter:
 
         self.axes[0, 1].cla()
         self.axes[0, 1].set_title("Gyroscope")
-        for axis in ['x', 'y', 'z']:
+        for axis in ['roll', 'pitch', 'yaw']:
             self.axes[0, 1].plot(self.data['t'], self.data['gyro'][axis], label=axis)
         self.axes[0, 1].legend()
 
@@ -67,5 +68,5 @@ class Plotter:
         self.axes[2, 0].legend()
 
         self.axes[2, 1].axis('off')
-        plt.ioff()
+        plt.pause(0.1)
         plt.show()
