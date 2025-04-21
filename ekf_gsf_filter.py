@@ -1,11 +1,13 @@
 import numpy as np
 from scipy.linalg import block_diag
 from scipy.stats import multivariate_normal
+from scipy.spatial.transform import Rotation as R
 
 
 class EKF:
     def __init__(self, state_dim, Q, H, R):
-        self.x = np.zeros(state_dim)  # State: [pos(3), vel(3), euler(3), gyro_bias(3), acc_bias(3)]
+        self.x = np.zeros(state_dim)  # State: [pos(3), vel(3), quat(4), gyro_bias(3), acc_bias(3)]
+        self.x[6:10] = np.array([0, 0, 0, 1])
         self.P = np.eye(state_dim)  # Initial covariance
         self.H = H  # Measurement matrix
         self.R = R  # Measurement noise
@@ -14,24 +16,23 @@ class EKF:
         self.S = None  # Innovation covariance
 
     def predict(self, dt, gyro_meas, accel_meas):
-        # Simplified IMU-driven prediction (basic integration)
-        # Extract biases
-        gyro_bias = self.x[9:12]
-        acc_bias = self.x[12:15]
+        gyro_bias = self.x[10:13]
+        acc_bias = self.x[13:16]
 
         # Correct measurements with biases
         omega = gyro_meas - gyro_bias
         acc = accel_meas - acc_bias
 
         # Update attitude (Euler integration, not ideal for large angles)
-        phi, theta, psi = self.x[6:9]
-        self.x[6] += omega[0] * dt
-        self.x[7] += omega[1] * dt
-        self.x[8] += omega[2] * dt
+        q = self.x[6:10]
+        dq = self.quat_derivative(q, omega)
+        q_new = q + dq * dt
+        q_new /= np.linalg.norm(q_new)  # нормализация
+        self.x[6:10] = q_new
 
         # Rotate acceleration to world frame (simplified)
-        R = self.euler_to_rot(phi, theta)
-        acc_world = R @ acc + np.array([0, 0, 9.81])
+        r = R.from_quat(q_new)
+        acc_world = r.apply(acc) + np.array([0, 0, 9.81])
 
         # Update velocity and position
         self.x[3:6] += acc_world * dt
@@ -41,21 +42,23 @@ class EKF:
         F = self.compute_jacobian(dt)
         self.P = F @ self.P @ F.T + self.Q
 
-    def euler_to_rot(self, phi, theta):
-        # Simplified rotation matrix (roll, pitch, yaw)
-        R_x = np.array([[1, 0, 0],
-                        [0, np.cos(phi), -np.sin(phi)],
-                        [0, np.sin(phi), np.cos(phi)]])
+    def quat_derivative(self, q, omega):
+        # Кватернион как [x, y, z, w]
+        qx, qy, qz, qw, = q[0], q[1], q[2],q[3]
+        ox, oy, oz = omega
 
-        R_y = np.array([[np.cos(theta), 0, np.sin(theta)],
-                        [0, 1, 0],
-                        [-np.sin(theta), 0, np.cos(theta)]])
-
-        return R_y @ R_x
+        # Матрица умножения кватернионов
+        Omega = 0.5 * np.array([
+            [0, -ox, -oy, -oz],
+            [ox, 0, oz, -oy],
+            [oy, -oz, 0, ox],
+            [oz, oy, -ox, 0]
+        ])
+        return Omega @ q
 
     def compute_jacobian(self, dt):
         # Basic Jacobian for constant velocity model
-        F = np.eye(15)
+        F = np.eye(16)
         F[0:3, 3:6] = np.eye(3) * dt
         return F
 
@@ -75,11 +78,11 @@ class EKF:
             return  # Handle singular matrix
 
         self.x = x + K @ self.y
-        self.P = (np.eye(15) - K @ H) @ P
+        self.P = (np.eye(16) - K @ H) @ P
 
 
 class GSF:
-    def __init__(self, sensor_combinations, H_matrices, R_matrices, Q, state_dim=15):
+    def __init__(self, sensor_combinations, H_matrices, R_matrices, Q, state_dim=16):
         self.filters = []
         self.weights = []
         self.combinations = sensor_combinations
@@ -97,13 +100,13 @@ class GSF:
         self.weights = np.ones(len(sensor_combinations)) / len(sensor_combinations)
 
     def predict_all(self, dt, imu_data):
-        for ekf in self.filters:
-            gyro = np.array([imu_data['gyro'][0],
-                             imu_data['gyro'][1],
-                             imu_data['gyro'][2]])
-            accel = np.array([imu_data['accel'][0],
-                              imu_data['accel'][1],
-                              imu_data['accel'][2]])
+        for ekf, combo in zip(self.filters, self.combinations):
+            accel = np.array([imu_data[combo[0]]['ax_acc'],
+                              imu_data[combo[0]]['ay_acc'],
+                              imu_data[combo[0]]['az_acc']])
+            gyro = np.array([imu_data[combo[1]]['roll'],
+                             imu_data[combo[1]]['pitch'],
+                             imu_data[combo[1]]['yaw']])
             ekf.predict(dt, gyro, accel)
 
     def update_all(self, sensor_data):
@@ -116,9 +119,9 @@ class GSF:
                     break
                 # Build measurement vector based on sensor type
                 if 'accel' in sensor:
-                    z.extend([sensor_data[sensor]['x'],
-                              sensor_data[sensor]['y'],
-                              sensor_data[sensor]['z']])
+                    z.extend([sensor_data[sensor]['ax_acc'],
+                              sensor_data[sensor]['ay_acc'],
+                              sensor_data[sensor]['az_acc']])
                 elif 'gyro' in sensor:
                     z.extend([sensor_data[sensor]['roll'],
                               sensor_data[sensor]['pitch'],
@@ -131,12 +134,9 @@ class GSF:
             if not valid:
                 continue
 
-            try:
-                ekf.update(np.array(z))
-                likelihood = multivariate_normal.pdf(ekf.y, cov=ekf.S)
-                self.weights[i] *= likelihood
-            except:
-                self.weights[i] = 0
+            ekf.update(np.array(z))
+            likelihood = multivariate_normal.pdf(ekf.y, cov=ekf.S)
+            self.weights[i] *= likelihood
 
         # Normalize weights
         total = np.sum(self.weights)
