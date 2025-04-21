@@ -49,7 +49,7 @@ R_matrices = {
 
 # Process noise matrix
 Q = np.diag([
-    0.1 ** 2, 0.1 ** 2, 0.1 ** 2,  # Position
+    0.0 ** 2, 0.0 ** 2, 0.0 ** 2,  # Position
     0.5 ** 2, 0.5 ** 2, 0.5 ** 2,  # Velocity
     0.005 ** 2, 0.005 ** 2, 0.005 ** 2, 0.005**2,  # Attitude
     0.001 ** 2, 0.001 ** 2, 0.001 ** 2,  # Gyro bias
@@ -90,6 +90,7 @@ while t < total_time:
     else:
         # Glide phase
         acceleration[:] = 0
+        velocity[2] = 0
         target_pitch = -0.1
         target_roll = 0.0
         target_yaw = 0.0
@@ -111,7 +112,6 @@ while t < total_time:
     # Physics integration
     velocity += acceleration * dt
     position += velocity * dt
-
     # Generate body-frame accelerations
     rot_matrix = np.array([
         [np.cos(pitch_angle), 0, -np.sin(pitch_angle)],
@@ -123,7 +123,6 @@ while t < total_time:
 
     # Sensor data generation
     sensor_data = {'timestamp': t}
-
     # IMU data
     for i in [1, 2, 3]:
         sensor_data[f'accel_{i}'] = simulator.sensors[f'accel_{i}'].read(t,
@@ -152,5 +151,4 @@ while t < total_time:
 
     plotter.update(sensor_data, estimate)
     t += dt
-plt.ioff
 plotter.plot()
