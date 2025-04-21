@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.linalg import block_diag
 from scipy.stats import multivariate_normal
-from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Rotation as Rot
 
 
 class EKF:
@@ -31,8 +31,8 @@ class EKF:
         self.x[6:10] = q_new
 
         # Rotate acceleration to world frame (simplified)
-        r = R.from_quat(q_new)
-        acc_world = r.apply(acc) + np.array([0, 0, 9.81])
+        r = Rot.from_quat(q_new)
+        acc_world = r.apply(acc)
 
         # Update velocity and position
         self.x[3:6] += acc_world * dt
@@ -44,7 +44,6 @@ class EKF:
 
     def quat_derivative(self, q, omega):
         # Кватернион как [x, y, z, w]
-        qx, qy, qz, qw, = q[0], q[1], q[2],q[3]
         ox, oy, oz = omega
 
         # Матрица умножения кватернионов
@@ -133,7 +132,6 @@ class GSF:
 
             if not valid:
                 continue
-
             ekf.update(np.array(z))
             likelihood = multivariate_normal.pdf(ekf.y, cov=ekf.S)
             self.weights[i] *= likelihood
@@ -143,7 +141,7 @@ class GSF:
         if total > 0:
             self.weights /= total
         else:
-            self.weights = np.ones_like(self.weights) / len(self.weights)
+            self.weights = np.ones_like(self.weights)
 
     def get_estimate(self):
         state = np.zeros_like(self.filters[0].x)
@@ -155,5 +153,4 @@ class GSF:
         for w, ekf in zip(self.weights, self.filters):
             diff = ekf.x - state
             covariance += w * (ekf.P + np.outer(diff, diff))
-
         return {'state': state, 'covariance': covariance}
