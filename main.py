@@ -8,6 +8,7 @@ dt = 0.1
 total_time = 20.0
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 accs = ['acc1', 'acc2', 'acc3']
 gyros = ['gyro1', 'gyro2', 'gyro3']
 baros = ['baro1', 'baro2']
@@ -49,10 +50,33 @@ H_matrices = {
 
     'mag_1': np.array([[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]])  # Measuring yaw
 >>>>>>> Stashed changes
+=======
+# Corrected sensor names matching SensorSimulator
+accs = ['accel_1', 'accel_2', 'accel_3']
+gyros = ['gyro_1', 'gyro_2', 'gyro_3']
+baros = ['baro_1', 'baro_2']
+mag = ['mag_1']
+sensor_combinations = [combo + tuple(mag) for combo in product(accs, gyros, baros)]
+
+H_matrices = {
+    'accel_1': np.eye(3, 15, k=12),
+    'accel_2': np.eye(3, 15, k=12),
+    'accel_3': np.eye(3, 15, k=12),
+
+    'gyro_1': np.eye(3, 15, k=9),
+    'gyro_2': np.eye(3, 15, k=9),
+    'gyro_3': np.eye(3, 15, k=9),
+
+    'baro_1': np.array([[0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),  # Measuring altitude
+    'baro_2': np.array([[0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]),
+
+    'mag_1': np.array([[0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]])  # Measuring yaw
+>>>>>>> Stashed changes
 }
 
 # Measurement noise matrices
 R_matrices = {
+<<<<<<< Updated upstream
 <<<<<<< Updated upstream
     'acc1': np.diag([0.02 ** 2] * 3),
     'acc2': np.diag([0.02 ** 2] * 3),
@@ -66,6 +90,20 @@ R_matrices = {
     'baro2': np.array([[0.5 ** 2]]),
 
     'mag': np.array([[np.deg2rad(5.0) ** 2]])
+=======
+    'accel_1': np.diag([0.1 ** 2, 0.1 ** 2, 0.1 ** 2]),
+    'accel_2': np.diag([0.1 ** 2, 0.1 ** 2, 0.1 ** 2]),
+    'accel_3': np.diag([0.1 ** 2, 0.1 ** 2, 0.1 ** 2]),
+
+    'gyro_1': np.diag([0.05 ** 2, 0.05 ** 2, 0.05 ** 2]),
+    'gyro_2': np.diag([0.05 ** 2, 0.05 ** 2, 0.05 ** 2]),
+    'gyro_3': np.diag([0.05 ** 2, 0.05 ** 2, 0.05 ** 2]),
+
+    'baro_1': np.array([[1.0 ** 2]]),
+    'baro_2': np.array([[1.0 ** 2]]),
+
+    'mag_1': np.array([[0.1 ** 2]])
+>>>>>>> Stashed changes
 =======
     'accel_1': np.diag([0.1 ** 2, 0.1 ** 2, 0.1 ** 2]),
     'accel_2': np.diag([0.1 ** 2, 0.1 ** 2, 0.1 ** 2]),
@@ -102,6 +140,7 @@ gsf = GSF(
 
 simulator = SensorSimulator()
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 
 simulator.sensors['accel_1'].sigma = 0.02
 simulator.sensors['accel_1'].add_failure(
@@ -111,6 +150,8 @@ simulator.sensors['accel_1'].add_failure(
     start_time=5.0
 )
 
+=======
+>>>>>>> Stashed changes
 =======
 >>>>>>> Stashed changes
 plotter = Plotter()
@@ -125,11 +166,14 @@ previous_position = np.zeros(3)
 
 while t < total_time:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     sensor_data = {'timestamp': t}
     for sid, sensor in simulator.sensors.items():
         sensor_data[sid] = sensor.read(t)
     gsf.predict_all(dt)
 =======
+=======
+>>>>>>> Stashed changes
     # Generate true motion parameters
     altitude = 0.0
     climb_rate = 0.0
@@ -181,6 +225,9 @@ while t < total_time:
 
     # Filter steps
     gsf.predict_all(dt, imu_data)
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     gsf.update_all(sensor_data)
 
@@ -191,7 +238,12 @@ while t < total_time:
     previous_position = current_position
     t += dt
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 plotter.plot()
+=======
+
+plotter.plot()
+>>>>>>> Stashed changes
 =======
 
 plotter.plot()
